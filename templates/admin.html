@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+.admin-table { width: 100%; border-collapse: collapse; }
+.admin-table th, .admin-table td { padding: 8px 10px; border-bottom: 1px solid #eee; }
+.admin-actions { display:flex; gap:8px; }
+.confirm-input { width: 220px; padding:6px; }
+</style>
+
+<h1>Admin Dashboard</h1>
+<p class="muted">Manage users and data. Passwords are not viewable; you may reset a user's password (shown once) or delete users/data permanently.</p>
+
+<h2>Users</h2>
+<table class="admin-table">
+  <thead>
+    <tr><th>ID</th><th>Username</th><th>Status</th><th>Admin</th><th>Actions</th></tr>
+  </thead>
+  <tbody>
+    {% for u in users %}
+      <tr>
+        <td>{{ u.id }}</td>
+        <td>{{ u.username }}</td>
+        <td>{% if u.is_online %}<span style="color:#16a34a">online</span>{% else %}<span style="color:#6b7280">offline</span>{% endif %}</td>
+        <td>{% if u.is_admin %}YES{% else %}NO{% endif %}</td>
+        <td>
+          <div class="admin-actions">
+            <form method="post" action="{{ url_for('admin_reset_password', user_id=u.id) }}">
+              <button class="btn small" type="submit">Reset password</button>
+            </form>
+            <form method="post" action="{{ url_for('admin_delete_user', user_id=u.id) }}">
+              <button class="btn small btn-delete" type="submit">Delete user</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<h2>Danger zone — permanent deletion</h2>
+<p class="muted">This action will permanently delete all non-admin users and their files from the server. It cannot be undone.</p>
+<form method="post" action="{{ url_for('admin_delete_all') }}">
+  <label>Type <strong>DELETE ALL</strong> to confirm
+    <input name="confirm" class="confirm-input" required />
+  </label>
+  <div style="margin-top:8px">
+    <button class="btn btn-delete" type="submit">Permanently delete all non-admin data</button>
+  </div>
+</form>
+
+{% endblock %}

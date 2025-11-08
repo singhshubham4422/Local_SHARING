@@ -1,0 +1,23 @@
+{% extends "layout.html" %}
+{% block content %}
+  <h1>Activity Log</h1>
+  <section class="panel">
+    <table style="width:100%;border-collapse:collapse">
+      <thead>
+        <tr style="text-align:left;color:var(--muted)"><th>User</th><th>Action</th><th>Details</th><th>When</th></tr>
+      </thead>
+      <tbody>
+        {% for a in activities %}
+        <tr>
+          <td>{{ a.username or '(system)' }}</td>
+          <td>{{ a.verb }}</td>
+          <td>{{ a.details }}</td>
+          <td>{{ a.created_at }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4">No activity yet</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

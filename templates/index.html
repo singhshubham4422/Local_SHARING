@@ -1,0 +1,281 @@
+{% extends "layout.html" %}
+{% block content %}
+<style>
+/* ======= Integrated Dashboard Styles ======= */
+.file-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #f9fafc;
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  transition: 0.2s;
+  margin-bottom: 10px;
+}
+.file-row:hover {
+  background: #f0f4ff;
+  transform: translateY(-1px);
+}
+
+.file-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.file-details strong {
+  color: #222;
+  font-weight: 600;
+}
+.file-meta {
+  color: #666;
+  font-size: 0.85rem;
+}
+
+.file-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.share-input {
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+  font-size: 0.9rem;
+}
+
+.btn.small {
+  padding: 6px 10px;
+  font-size: 0.88rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-weight: 500;
+}
+
+.btn-download {
+  background: #007bff;
+  color: #fff;
+}
+.btn-download:hover {
+  background: #005fd1;
+}
+
+.btn-share {
+  background: #22c55e;
+  color: #fff;
+}
+.btn-share:hover {
+  background: #1e9f4a;
+}
+
+.btn-delete {
+  background: #ef4444;
+  color: #fff;
+}
+.btn-delete:hover {
+  background: #d13131;
+}
+
+.btn.primary {
+  background: #2563eb;
+  color: #fff;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 8px 14px;
+}
+.btn.primary:hover {
+  background: #1d4ed8;
+}
+
+.file-ext {
+  color: #888;
+  font-size: 0.8rem;
+  margin-left: 4px;
+}
+
+.upload-actions {
+  margin-top: 10px;
+}
+
+.file-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.file-list li {
+  margin-bottom: 10px;
+}
+
+.category-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 15px 0 8px;
+}
+
+.cat-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.file-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  object-fit: cover;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.muted {
+  color: #777;
+  font-size: 0.9rem;
+}
+.status-online {
+  color: #16a34a; /* green */
+  font-weight: 600;
+}
+.status-offline {
+  color: #6b7280; /* muted gray */
+}
+</style>
+
+<h1>Dashboard</h1>
+
+<section class="panel upload-panel">
+  <h2>Upload a File</h2>
+  <form id="upload-form" action="{{ url_for('upload') }}" method="post" enctype="multipart/form-data" class="upload-simple">
+    {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />{% endif %}
+    <label class="file-label">Choose a file
+      <input id="file-input" type="file" name="file" required />
+    </label>
+    <div class="upload-actions">
+      <button class="btn primary" type="submit">⬆️ Upload</button>
+    </div>
+  </form>
+  <p class="muted">Files are stored privately under your account. Use Share to send copies to other users.</p>
+</section>
+
+<section class="panel two-cols">
+  <div>
+    <div class="panel-header">
+      <h2>My Files</h2>
+      <form action="{{ url_for('organize') }}" method="post" style="display:inline">
+        {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />{% endif %}
+        <button class="btn ghost" type="submit">🗂️ Organize</button>
+      </form>
+    </div>
+
+    {% if my_files_grouped %}
+      {% for category, files in my_files_grouped %}
+        <h3 class="category-title" data-category="cat-{{ loop.index }}">
+          <img class="cat-icon" src="/static/icons/{{ category|lower }}.svg" alt="{{ category }}" />
+          <button class="category-toggle" data-target="cat-{{ loop.index }}">{{ category }} ({{ files|length }})</button>
+        </h3>
+        <ul class="file-list" id="cat-{{ loop.index }}">
+          {% for f in files %}
+            <li>
+              <div class="file-row">
+                <div class="file-info">
+                  {% if f.thumbnail %}
+                    <img class="file-icon" src="/storage/{{ f.thumbnail }}" alt="{{ category }}" data-full="/storage/{{ f['storage_rel'] }}" />
+                  {% else %}
+                    <img class="file-icon" src="/static/icons/{{ category|lower }}.svg" alt="{{ category }}" data-thumb1="/storage/{{ current_user.username }}/thumb_{{ f['filename'] }}.jpg" data-full="/storage/{{ f['storage_rel'] }}" />
+                  {% endif %}
+                  <div class="file-details" title="Size: {{ f['size']|filesize }} • Uploaded: {{ f['uploaded_at'] }}">
+                    <strong>{{ f['original_name'] }}</strong>
+                    <div class="file-meta">{{ f['size']|filesize }} • {{ f['uploaded_at'] }}</div>
+                  </div>
+                </div>
+
+                <div class="file-actions">
+                  <a class="btn small btn-download" href="{{ url_for('download', file_id=f['id']) }}">
+                    ⬇️ <span>Download</span>
+                  </a>
+
+                  <form class="inline" action="{{ url_for('share', file_id=f['id']) }}" method="post">
+                    {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />{% endif %}
+                    <input name="to_username" class="share-input" placeholder="username" required />
+                    <button class="btn small btn-share" type="submit">
+                      📤 <span>Share</span>
+                    </button>
+                  </form>
+
+                  <form class="inline delete-form" action="{{ url_for('delete_file', file_id=f['id']) }}" method="post">
+                    {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />{% endif %}
+                    <button class="btn small btn-delete" type="submit">
+                      🗑️ <span>Delete</span>
+                    </button>
+                  </form>
+
+                  <span class="file-ext">.{{ f['original_name'].rsplit('.',1)[1] if '.' in f['original_name'] else '' }}</span>
+                </div>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endfor %}
+    {% else %}
+      <p>(no files yet)</p>
+    {% endif %}
+  </div>
+
+  <div>
+    <h2>Shared With Me</h2>
+    <ul class="file-list">
+      {% for f in shared_files %}
+        <li>
+          <div class="file-row">
+            <div class="file-info">
+              <img class="file-icon" src="/static/icons/{{ f['category']|lower }}.svg" alt="{{ f['category'] }}" data-full="/storage/{{ f['storage_rel'] }}" />
+              <div class="file-details">
+                <strong>{{ f['original_name'] }}</strong>
+                <div class="file-meta">From: {{ f['original_owner'] or 'unknown' }} • {{ f['uploaded_at'] }}</div>
+              </div>
+            </div>
+
+            <div class="file-actions">
+              <a class="btn small btn-download" href="{{ url_for('download', file_id=f['id']) }}">⬇️ Download</a>
+              <form class="inline delete-form" action="{{ url_for('delete_file', file_id=f['id']) }}" method="post">
+                {% if csrf_token %}<input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />{% endif %}
+                <button class="btn small btn-delete" type="submit">🗑️ Delete</button>
+              </form>
+            </div>
+          </div>
+        </li>
+      {% else %}
+        <li>(no shared files)</li>
+      {% endfor %}
+    </ul>
+
+    <h3>Users</h3>
+    <ul id="online-list">
+      {% for u in online_users %}
+        <li>
+          <span>{{ u['username'] }}</span>
+          {% if u['is_online'] %}
+            <span class="status-online"> · online</span>
+          {% else %}
+            <span class="status-offline"> · offline</span>
+          {% endif %}
+        </li>
+      {% else %}
+        <li>(no other users)</li>
+      {% endfor %}
+    </ul>
+  </div>
+</section>
+{% endblock %}

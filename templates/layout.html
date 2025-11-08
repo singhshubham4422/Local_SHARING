@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Local Cloud Drive</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <nav class="nav">
+  <div class="nav-left">Local Cloud Drive</div>
+  <div style="margin-left:18px; font-size:0.95rem; color:var(--muted)"><a href="{{ url_for('activities') }}" style="color:var(--muted); text-decoration:none">Activity</a></div>
+      <div class="nav-right">
+        {% if current_user.is_authenticated %}
+        <span class="nav-user">{{ current_user.username }}</span>
+        <a class="btn" href="{{ url_for('logout') }}">Logout</a>
+        {% else %}
+        <a class="btn" href="{{ url_for('login') }}">Login</a>
+        <a class="btn" href="{{ url_for('register') }}">Register</a>
+        {% endif %}
+      </div>
+    </nav>
+  <main class="container">
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          <ul class="flashes">
+            {% for category, msg in messages %}
+              <li class="flash {{ category }}">{{ msg }}</li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+      {% endwith %}
+      {% block content %}{% endblock %}
+    </main>
+    
+    <footer class="footer">Runs on LAN — access via this machine's IP at port 5000</footer>
+  </body>
+  <!-- Image preview modal -->
+  <div id="preview-modal" class="modal" aria-hidden="true" style="display:none">
+    <div class="modal-backdrop"></div>
+    <div class="modal-content">
+      <button id="modal-close" class="btn ghost">Close</button>
+      <img id="modal-img" src="" alt="Preview" style="max-width:100%;max-height:80vh;border-radius:8px" />
+    </div>
+  </div>
+  <script>
+  // Basic polling to update online users and shared counts
+  async function fetchOnline(){
+    try{
+      const r = await fetch('/api/online');
+      if(!r.ok) return;
+      const list = await r.json();
+      const el = document.getElementById('online-list');
+      if(el){
+        el.innerHTML = list.map(u=>`<li>${u}</li>`).join('') || '<li>(none)</li>';
+      }
+    }catch(e){console.error(e)}
+  }
+  setInterval(fetchOnline, 10000);
+  window.addEventListener('load', fetchOnline);
+
+  // Collapsible categories: toggle file list by clicking the category button
+  function setupCategoryToggles(){
+    document.querySelectorAll('.category-toggle').forEach(btn => {
+      btn.addEventListener('click', e => {
+        const target = btn.getAttribute('data-target');
+        const el = document.getElementById(target);
+        if(!el) return;
+        el.classList.toggle('collapsed');
+        // toggle aria-expanded for accessibility
+        const expanded = !el.classList.contains('collapsed');
+        btn.setAttribute('aria-expanded', expanded);
+      });
+    });
+  }
+  window.addEventListener('load', () => {
+    fetchOnline();
+    setupCategoryToggles();
+    // attempt to replace category icons with thumbnails when available
+    document.querySelectorAll('img.file-icon').forEach(img => {
+      const t1 = img.getAttribute('data-thumb1');
+      const t2 = img.getAttribute('data-thumb2');
+      // try primary thumbnail then secondary
+      [t1, t2].forEach(url => {
+        if(!url) return;
+        fetch(url, {method:'HEAD'}).then(r=>{
+          if(r.ok){ img.src = url; }
+        }).catch(()=>{});
+      });
+    });
+    // click-to-preview images in modal
+    document.addEventListener('click', e=>{
+      const t = e.target.closest('img.file-icon');
+      if(!t) return;
+      const full = t.getAttribute('data-full');
+      if(!full) return;
+      const modal = document.getElementById('preview-modal');
+      const img = document.getElementById('modal-img');
+      img.src = full;
+      modal.style.display = 'flex';
+      modal.setAttribute('aria-hidden','false');
+    });
+    document.getElementById('modal-close').addEventListener('click', ()=>{
+      const modal = document.getElementById('preview-modal');
+      const img = document.getElementById('modal-img');
+      img.src = '';
+      modal.style.display = 'none';
+      modal.setAttribute('aria-hidden','true');
+    });
+    // standard upload form will submit normally; no drag/drop or AJAX upload active
+    // confirm before deleting files
+    document.addEventListener('submit', function(e){
+      const form = e.target;
+      if(form && form.classList && form.classList.contains('delete-form')){
+        if(!confirm('Delete this file? This action cannot be undone.')){
+          e.preventDefault();
+        }
+      }
+    });
+  });
+  </script>
+</html>
